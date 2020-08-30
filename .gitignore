@@ -1,5 +1,8 @@
 # ignore log files
 *.log
 
+# ignore html files
+*.html
+
 # ignore vsc folder 
 .vscode/* 
