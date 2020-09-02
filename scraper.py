@@ -1,6 +1,7 @@
 import re
 import datetime as dt
 import time
+import csv
 
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
@@ -30,28 +31,29 @@ def main():
     except TimeoutException as e:
         print('Timed out waiting for page to load.')
 
-    todays_date = dt.datetime.today()
-    prev_weekday = get_prev_weekday(todays_date).strftime('%d/%m/%Y')
-
-    # grab previous weekdays area tags from the image map
-    area_tags = iframe.find_elements(By.XPATH, f'//area[starts-with(@fields, "date|{prev_weekday}")]')
+    area_tags = get_area_tags(iframe)
     data_points = [point.get_attribute('fields') for point in area_tags]  # the fields attribute has all of the required data
 
-    # use the last data point to figure out the days to expiry
-    last_data_point = parse_data(data_points[-1])
+    # use random data point to figure out the contracts days to expiry
+    rand_data_point = parse_data(data_points[-1])
 
-    if last_data_point['dte'] < 9:
+    if rand_data_point['dte'] < 9:
         # change the futures contract selected to the next expiration
         change_contract(iframe, 1)
+        area_tags = get_area_tags(iframe)
+        data_points = [point.get_attribute('fields') for point in area_tags]
 
-        # grab previous weekdays area tags from the image map
-        area_tags = iframe.find_elements(By.XPATH, f'//area[starts-with(@fields, "date|{prev_weekday}")]')
-        data_points = [point.get_attribute('fields') for point in area_tags]  # the fields attribute has all of the required data
+    cleaned_data = []
 
     for data_point in data_points:
         if 'future' not in data_point and 'ratio' not in data_point:
-            print(parse_data(data_point))
-    
+            cleaned_data.append(parse_data(data_point))
+
+    with open('EUU.csv', 'a') as f:
+        keys = cleaned_data[0].keys()
+        w = csv.DictWriter(f, keys)
+        w.writerows(cleaned_data)
+        
     driver.quit()
 
 
@@ -101,8 +103,27 @@ def change_contract(frame, exp):
     ok_button = exp_ddelem.find_element(By.XPATH, '//*[@id="MainContent_ucViewControl_ActiveVol_tbATM_ucExpirationPicker_btnOK"]')
     ok_button.click()
 
-    # wait for page to load fully
+    # wait for page to fully load
     time.sleep(5)
+
+
+def get_area_tags(frame):
+    """Retrieves all of the area tags from an iframe."""
+
+    todays_date = dt.datetime.today()
+    prev_weekday = get_prev_weekday(todays_date).strftime('%d/%m/%Y')
+
+    # sometimes area_tags is an empty list so need to keep trying
+    while True:
+        # grab previous weekdays area tags from the image map
+        area_tags = frame.find_elements(By.XPATH, f'//area[starts-with(@fields, "date|{prev_weekday}")]')
+
+        if len(area_tags) != 0:
+            break
+        
+        time.sleep(5)
+    
+    return area_tags
 
 
 def parse_data(data):
