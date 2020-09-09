@@ -14,24 +14,49 @@ from selenium.webdriver.common.by import By
 def main():
     driver = configure_driver()
 
-    # this url is for the quikvol-tool page
     quikvol_url = 'https://www.cmegroup.com/tools-information/quikstrike/pricing-volatility-strategy-tools/quikvol-tool.html'
-    # this url is for the EUU iframe
-    EUU_iframe_url = 'https://cmegroup-tools.quikstrike.net//User/QuikStrikeView.aspx?pid=350&pf=61&viewitemid=AboutCMEHistory&insid=39113745'
-
-    # not sure why I have to do it one after the other
     driver.get(quikvol_url)
-    driver.get(EUU_iframe_url)
 
     try:
-        # wait for container div to load
+        # wait for iframe to load
         iframe = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, 'container'))
+            EC.presence_of_element_located((By.XPATH, '//*[contains(@id,"cmeIframe")]'))
         )
     except TimeoutException as e:
-        print('Timed out waiting for page to load.')
+        print('Timed out waiting for iframe to load.')
 
-    area_tags = get_area_tags(iframe)
+    driver.switch_to.frame(iframe)
+
+    try:
+        # click products dropdown menu
+        prod_ddelem = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="ctl06_hlProductArrow"]'))
+        )
+        prod_ddelem.click()
+
+        # click foreign exchange tag
+        for_ex = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.LINK_TEXT, 'Foreign Exchange'))
+        )
+        for_ex.click()
+
+        # click foreign exchange majors tag
+        fx_maj = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.LINK_TEXT, 'FX Majors'))
+        )
+        fx_maj.click()
+
+        # click EURUSD tag
+        euu = driver.find_element(By.LINK_TEXT, 'EUR/USD (EUU)')
+        euu.click()
+    except TimeoutException as e:
+        print('Timed out selecting product.')
+
+    # click on active expirations button
+    act_exp = driver.find_element(By.XPATH, '//*[@id="MainContent_ucViewControl_AboutCMEHistory_ucView1_btnView"]')
+    act_exp.click()
+
+    area_tags = get_area_tags(driver)
     data_points = [point.get_attribute('fields') for point in area_tags]  # the fields attribute has all of the required data
 
     # use random data point to figure out the contracts days to expiry
@@ -39,8 +64,8 @@ def main():
 
     if rand_data_point['dte'] < 9:
         # change the futures contract selected to the next expiration
-        change_contract(iframe, 1)
-        area_tags = get_area_tags(iframe)
+        change_contract(driver, 1)
+        area_tags = get_area_tags(driver)
         data_points = [point.get_attribute('fields') for point in area_tags]
 
     cleaned_data = []
@@ -61,9 +86,8 @@ def configure_driver():
     """Configures a headless firefox driver."""
     
     firefox_options = FirefoxOptions()
-    
-    # make the browser headless
-    firefox_options.add_argument('--headless')
+    # firefox_options.add_argument('--headless')
+    firefox_options.add_argument('--kiosk')  # maximises window
 
     # instantiate the webdriver
     driver = webdriver.Firefox(options = firefox_options)
