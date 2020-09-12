@@ -29,32 +29,12 @@ class TestGetPrevWeekday(unittest.TestCase):
 class TestParseData(unittest.TestCase):
     """Includes tests for the parse_data function."""
     
-    def test_no_date(self):
-        """Tests the function using data with no date."""
+    def test_incorrect_data(self):
+        """Tests the function using incorrect data."""
 
-        unparsed_data = 'date|~dte|4~atmStrike|1.1950~vol|9.43'
+        unparsed_data = 'this is a test'
         result = parse_data(unparsed_data)
-        expected_result = {'date': None, 'type': 'IV', 'vol': 9.43, 'dte': 4}
-        
-        self.assertEqual(result, expected_result)
-    
-    def test_no_vol(self):
-        """Tests the function using data with no volatility."""
-
-        unparsed_data = 'date|31/08/2020~dte|4~atmStrike|1.1950~vol|'
-        result = parse_data(unparsed_data)
-        expected_date = dt.date(2020, 8, 31)
-        expected_result = {'date': expected_date, 'type': 'IV', 'vol': None, 'dte': 4}
-        
-        self.assertEqual(result, expected_result)
-    
-    def test_no_dte(self):
-        """Tests the function using data with no days to expiry."""
-
-        unparsed_data = 'date|31/08/2020~dte|~atmStrike|1.1950~vol|9.43'
-        result = parse_data(unparsed_data)
-        expected_date = dt.date(2020, 8, 31)
-        expected_result = {'date': expected_date, 'type': 'IV', 'vol': 9.43, 'dte': None}
+        expected_result = {'date': None, 'type': None, 'vol': None, 'dte': None}
         
         self.assertEqual(result, expected_result)
 

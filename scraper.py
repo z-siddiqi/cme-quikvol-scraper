@@ -2,6 +2,7 @@ import re
 import datetime as dt
 import time
 import csv
+import sys
 
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
@@ -23,7 +24,7 @@ def main():
             EC.presence_of_element_located((By.XPATH, '//*[contains(@id,"cmeIframe")]'))
         )
     except TimeoutException as e:
-        print('Timed out waiting for iframe to load.')
+        sys.exit('Timed out waiting for iframe to load.')
 
     driver.switch_to.frame(iframe)
 
@@ -50,7 +51,7 @@ def main():
         euu = driver.find_element(By.LINK_TEXT, 'EUR/USD (EUU)')
         euu.click()
     except TimeoutException as e:
-        print('Timed out selecting product.')
+        sys.exit('Timed out selecting product.')
 
     # click on active expirations button
     act_exp = driver.find_element(By.XPATH, '//*[@id="MainContent_ucViewControl_AboutCMEHistory_ucView1_btnView"]')
@@ -157,27 +158,25 @@ def parse_data(data):
     date_string = re.search(r'date\|[0-9]{2}/[0-9]{2}/[0-9]{4}', data)
     vol_string = re.search(r'vol\|[0-9]+\.[0-9]{1,2}$', data)
     days_to_exp_string = re.search(r'dte\|[0-9]{1,3}', data)
-
+    
     # handle re.search returning NoneType
-    if date_string:
+    try:
         date_string = date_string.group(0)[5:]
         date = dt.datetime.strptime(date_string, '%d/%m/%Y').date()
-    else:
-        date = None
 
-    if vol_string:
         vol_string = vol_string.group(0)[4:]
         vol = float(vol_string)
-    else:
-        vol = None
-    
-    if days_to_exp_string:
+
         days_to_exp_string = days_to_exp_string.group(0)[4:]
         days_to_exp = int(days_to_exp_string)
-    else:
-        days_to_exp = None
 
-    vol_type = 'IV' if 'atmStrike' in data else 'HV'
+        vol_type = 'IV' if 'atmStrike' in data else 'HV'
+    except AttributeError as e:
+        date = None
+        vol = None
+        days_to_exp = None
+        vol_type = None
+
     parsed_data = {'date': date, 'type': vol_type, 'vol': vol, 'dte': days_to_exp}
 
     return parsed_data
